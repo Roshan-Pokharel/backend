@@ -954,6 +954,35 @@ async function startServer() {
     });
 
     // --- NEW & IMPROVED: GROUP CALL SIGNALING ---
+    socket.on("group-call:start", async ({ groupId, callType }) => {
+      const caller = users[socket.id];
+      if (!caller) return;
+
+      try {
+        // Fetch the group details from the database
+        const group = await groupsCollection.findOne({
+          _id: new ObjectId(groupId),
+        });
+        if (!group) {
+          console.error(
+            `Attempted to start call in non-existent group: ${groupId}`
+          );
+          return;
+        }
+
+        // Notify all other members in the group's socket.io room
+        io.to(`group-${groupId}`)
+          .except(socket.id)
+          .emit("group-call:incoming", {
+            group: { id: groupId, name: group.name },
+            caller: caller,
+            callType: callType,
+          });
+      } catch (error) {
+        console.error("Error starting group call:", error);
+      }
+    });
+
     socket.on("group-call:join", ({ roomId }) => {
       socket.join(roomId);
 
@@ -1033,7 +1062,10 @@ async function startServer() {
           }
         }
         for (const roomId in activeGameRooms) {
-          handlePlayerLeave(socket.id, roomId);
+          // FIX: Only remove player from games they are actually in
+          if (activeGameRooms[roomId].players.some((p) => p.id === socket.id)) {
+            handlePlayerLeave(socket.id, roomId);
+          }
         }
       }
       if (pendingPrivateRequests[socket.id]) {
