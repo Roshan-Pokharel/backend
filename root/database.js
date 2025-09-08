@@ -15,10 +15,10 @@ async function connectToDb() {
   try {
     await client.connect();
     db = client.db("chat_app");
-    console.log("✅ Successfully connected to MongoDB!");
+    console.log("Successfully connected to MongoDB!");
     return db;
   } catch (err) {
-    console.error("🔴 Failed to connect to MongoDB", err);
+    console.error("Failed to connect to MongoDB", err);
     process.exit(1);
   }
 }

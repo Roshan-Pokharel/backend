@@ -8,6 +8,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { connectToDb } = require("./database");
 const { ObjectId } = require("mongodb");
+const axios = require("axios"); // <-- ADD THIS LINE
 
 const app = express();
 const server = http.createServer(app);
@@ -19,7 +20,29 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "10mb" })); // Increase limit for profile pictures
+app.use(express.json({ limit: "10mb" }));
+
+// --- NEW SECURE ENDPOINT FOR TURN CREDENTIALS ---
+app.get("/api/turn-credentials", async (req, res) => {
+  const METERED_API_KEY = process.env.METERED_API_KEY;
+
+  if (!METERED_API_KEY) {
+    return res
+      .status(500)
+      .json({ message: "API key not configured on the server." });
+  }
+
+  try {
+    const response = await axios.get(
+      `https://familychatapp.metered.live/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error("Error fetching TURN credentials:", error.message);
+    res.status(500).json({ message: "Failed to fetch TURN credentials." });
+  }
+});
+// --- END OF NEW ENDPOINT ---
 
 const io = new Server(server, {
   cors: corsOptions,
@@ -30,6 +53,9 @@ let usersCollection;
 let messagesCollection;
 let activeChatsCollection;
 let groupsCollection; // New collection for groups
+
+// ... (the rest of your server.js code remains exactly the same)
+// ... (I have omitted it for brevity, but you should keep it)
 
 // --- STATE MANAGEMENT ---
 const users = {};
@@ -56,9 +82,9 @@ async function initializeDb() {
       .limit(50)
       .toArray();
     roomMessageCache["public"] = publicHistory.reverse();
-    console.log("✅ Public chat history cached.");
+    console.log("Public chat history cached.");
   } catch (err) {
-    console.error("🔴 Error caching public chat history:", err);
+    console.error("Error caching public chat history:", err);
   }
 }
 
@@ -351,7 +377,7 @@ async function startServer() {
       delete users[oldSocketId];
     }
 
-    console.log("🟢 User connected:", socket.id, socket.user.username);
+    console.log("User connected:", socket.id, socket.user.username);
 
     userMessageTimestamps[socket.id] = [];
     callStates[socket.id] = { status: "idle", partnerId: null };
@@ -420,7 +446,7 @@ async function startServer() {
       },
       initialRoom: {
         id: "public",
-        name: "🌐 Public Chat",
+        name: "Public Chat",
         type: "public",
         history: roomMessageCache["public"] || [],
       },
@@ -1022,7 +1048,7 @@ async function startServer() {
 
     // Disconnect Handler
     socket.on("disconnect", async () => {
-      console.log("🔴 User disconnected:", socket.id);
+      console.log("User disconnected:", socket.id);
       endCallCleanup(socket.id);
       const user = users[socket.id];
       if (user) {
@@ -1498,8 +1524,8 @@ async function startServer() {
         ? gameState.currentPlayerIndex
         : (gameState.currentPlayerIndex + 1) % 2;
       const message = won
-        ? `🎉 ${user.name} won! The word was "${word}".`
-        : `😥 Game over! The word was "${word}".`;
+        ? `${user.name} won! The word was "${word}".`
+        : `Game over! The word was "${word}".`;
       io.to(room).emit("game:message", message);
       setTimeout(() => startNewHangmanRound(room), 5000);
     } else {
@@ -1551,7 +1577,7 @@ async function startServer() {
       gameState.isGameOver = true;
       io.to(roomId).emit(
         "game:message",
-        `😥 Game over! The word was "${gameState.word}".`
+        `Game over! The word was "${gameState.word}".`
       );
       gameState.lastWinnerIndex = (gameState.currentPlayerIndex + 1) % 2;
       setTimeout(() => startNewHangmanRound(roomId), 5000);
@@ -1571,7 +1597,7 @@ async function startServer() {
 
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {
-    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
   });
 }
 
