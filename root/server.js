@@ -15,7 +15,7 @@ const server = http.createServer(app);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const corsOptions = {
-  origin: process.env.FRONTEND_URL,
+  origin: "*",
   methods: ["GET", "POST"],
 };
 
